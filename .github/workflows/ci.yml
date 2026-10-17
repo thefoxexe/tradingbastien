@@ -9,9 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v5
         with:
-          version: "0.4.30"
+          version: "0.11.32"
       - name: Installer Python et les dépendances
         run: |
           uv python install 3.12
@@ -24,3 +24,5 @@ jobs:
         run: uv run mypy
       - name: Tests
         run: uv run pytest --cov --cov-report=term-missing
+      - name: Module de risque à 100 % de couverture
+        run: uv run pytest tests/test_risk.py --cov=bot/risk --cov-report=term-missing --cov-fail-under=100

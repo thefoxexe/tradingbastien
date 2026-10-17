@@ -11,13 +11,16 @@
 - Lint : `uv run ruff check . && uv run ruff format --check .`
 - Typage : `uv run mypy`
 - Tests : `uv run pytest --cov`
+- Backtest : `uv run python -m bot.backtest download --years 3 && uv run python -m bot.backtest run`
 
 # Avancement (plan de développement, docs/SPEC.md)
 - [x] 1. Squelette du repo
-- [ ] 2. Client Bybit
-- [ ] 3. Module de risque
-- [ ] 4. Données et backtester
-- [ ] 5. Stratégie de base et rapport
-- [ ] 6. Exécution et réconciliation
-- [ ] 7. Dashboard et Telegram
-- [ ] 8. Déploiement VPS et monitoring
+- [x] 2. Client Bybit (testé sur faux Bybit ; à valider en démo réelle)
+- [x] 3. Module de risque (100 % de couverture, Hypothesis)
+- [x] 4. Données et backtester
+- [x] 5. Stratégie de base et rapport (backtest sur vraies données Bybit à lancer)
+- [x] 6. Exécution et réconciliation (testées sur faux Bybit ; à valider en démo réelle)
+- [x] 7. Dashboard et Telegram
+- [~] 8. Déploiement VPS et monitoring : code et docs/DEPLOY.md prêts, VPS à installer à la main
+- [ ] 9. Six semaines de démo, puis revue go/no-go
+- [ ] 10. Live réduit, sur décision manuelle

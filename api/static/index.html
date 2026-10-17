@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bot Bybit</title>
+<link rel="icon" href="data:,">
+<script src="/static/vendor/lightweight-charts.standalone.production.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --surface-0: #f4f4f2; --surface-1: #fcfcfb; --border: #e3e2dc;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #7a7974;
+  --series-1: #2a78d6; --grid: #ecebe6;
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --track: #ecebe6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0: #111110; --surface-1: #1a1a19; --border: #2c2c2a;
+    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+    --series-1: #3987e5; --grid: #262624; --track: #2c2c2a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #111110; --surface-1: #1a1a19; --border: #2c2c2a;
+  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+  --series-1: #3987e5; --grid: #262624; --track: #2c2c2a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface-0); color: var(--text-primary);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface-1); position: sticky; top: 0; z-index: 2; }
+header h1 { font-size: 16px; margin: 0; }
+.badges { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.badge { display: inline-flex; gap: 6px; align-items: center; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--border); font-weight: 600; font-size: 12px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.actions { display: flex; gap: 8px; }
+button { font: inherit; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface-1); color: var(--text-primary); cursor: pointer; }
+button.danger { border-color: var(--critical); color: var(--critical); font-weight: 700; }
+button:focus-visible, nav a:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+nav { display: flex; gap: 4px; overflow-x: auto; padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--surface-1); }
+nav a { padding: 6px 12px; border-radius: 8px; color: var(--text-secondary); text-decoration: none; white-space: nowrap; }
+nav a.active { background: var(--surface-0); color: var(--text-primary); font-weight: 600; }
+main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+section { display: none; } section.active { display: block; }
+.grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+.kpi .label { color: var(--text-secondary); font-size: 12px; }
+.kpi .value { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.kpi .sub { color: var(--text-muted); font-size: 12px; }
+h2 { font-size: 14px; margin: 0 0 10px; color: var(--text-secondary); font-weight: 600; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--text-secondary); font-weight: 600; font-size: 12px; }
+th:first-child, td:first-child, td.l, th.l { text-align: left; }
+.muted { color: var(--text-muted); }
+.chart { height: 300px; } .chart.small { height: 180px; }
+.gauge { margin: 14px 0; }
+.gauge .row { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.gauge .track { height: 8px; border-radius: 4px; background: var(--track); margin-top: 6px; overflow: hidden; }
+.gauge .fill { height: 100%; border-radius: 4px; }
+.banner { padding: 10px 14px; border-radius: 10px; margin-bottom: 12px; font-weight: 600; border: 1px solid; }
+.lvl-ERROR, .lvl-CRITICAL { color: var(--critical); font-weight: 600; }
+.lvl-WARNING { color: var(--text-primary); font-weight: 600; }
+dialog { border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); color: var(--text-primary); max-width: 420px; width: calc(100% - 32px); }
+dialog input { font: inherit; width: 100%; padding: 8px; margin: 10px 0; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-0); color: var(--text-primary); }
+@media (max-width: 600px) { .kpi .value { font-size: 18px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bot de trading Bybit</h1>
+  <div class="badges">
+    <span id="status-badge" class="badge"><span class="dot"></span><span>…</span></span>
+    <span id="mode-badge" class="badge">…</span>
+    <span id="updated" class="muted"></span>
+  </div>
+  <div class="actions">
+    <button id="pause-btn" type="button">Pause</button>
+    <button id="kill-btn" type="button" class="danger">Kill switch</button>
+  </div>
+</header>
+<nav id="tabs">
+  <a href="#overview" class="active">Vue d'ensemble</a>
+  <a href="#positions">Positions</a>
+  <a href="#history">Historique</a>
+  <a href="#risk">Risque</a>
+  <a href="#performance">Performance</a>
+  <a href="#journal">Journal</a>
+  <a href="#settings">Réglages</a>
+</nav>
+<main>
+  <div id="banner"></div>
+
+  <section id="overview" class="active">
+    <div class="grid" id="kpis"></div>
+    <div class="card"><h2>Equity (USDT)</h2><div id="eq-mini" class="chart small"></div></div>
+  </section>
+
+  <section id="positions">
+    <div class="card table-wrap"><table id="positions-table"></table></div>
+  </section>
+
+  <section id="history">
+    <div class="card table-wrap"><table id="trades-table"></table></div>
+  </section>
+
+  <section id="risk">
+    <div class="card"><h2>Limites (part utilisée du plafond)</h2><div id="gauges"></div></div>
+  </section>
+
+  <section id="performance">
+    <div class="card"><h2>Courbe d'equity (USDT)</h2><div id="eq-chart" class="chart"></div></div>
+    <div class="card"><h2>Drawdown depuis le pic (%)</h2><div id="dd-chart" class="chart small"></div></div>
+    <div class="card table-wrap"><h2>Par stratégie</h2><table id="strat-table"></table></div>
+  </section>
+
+  <section id="journal">
+    <div class="card table-wrap"><table id="journal-table"></table></div>
+  </section>
+
+  <section id="settings">
+    <div class="card"><p class="muted">Lecture seule. Les plafonds sont codés en dur ; la configuration peut seulement les abaisser, depuis le fichier .env du VPS.</p>
+      <div class="table-wrap"><table id="settings-table"></table></div></div>
+  </section>
+</main>
+
+<dialog id="kill-dialog">
+  <form method="dialog">
+    <h3>Kill switch</h3>
+    <p>Annule tous les ordres, ferme <b>toutes</b> les positions au marché et passe le bot en <b>HALT</b>.
+      Seul un redémarrage manuel sur le VPS, après confirmation, en sortira.</p>
+    <label for="kill-word">Tapez <b>KILL</b> pour confirmer :</label>
+    <input id="kill-word" autocomplete="off">
+    <div class="actions" style="justify-content:flex-end">
+      <button value="cancel" type="submit">Annuler</button>
+      <button id="kill-confirm" value="ok" type="submit" class="danger">Tout couper</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const fmt = (x, d = 2) => x == null || isNaN(x) ? "–" : Number(x).toLocaleString("fr-CH", { minimumFractionDigits: d, maximumFractionDigits: d });
+const pct = (x, d = 2) => x == null || isNaN(x) ? "–" : fmt(x * 100, d) + " %";
+const signed = (x, d = 2) => x == null ? "–" : (x >= 0 ? "+" : "") + fmt(x, d);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const STATUS = { RUN: ["--good", "RUN — trading actif"], PAUSE: ["--warning", "PAUSE — aucune entrée"], HALT: ["--critical", "HALT — arrêt complet"] };
+
+async function get(path) {
+  const r = await fetch(path, { cache: "no-store" });
+  if (!r.ok) throw new Error(path + " " + r.status);
+  return r.json();
+}
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "X-Requested-With": "dashboard" }, body: JSON.stringify(body || {}) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail || r.status);
+  return data;
+}
+function table(el, headers, rows, empty) {
+  const head = "<tr>" + headers.map((h, i) => `<th class="${i === 0 ? "l" : ""}">${h}</th>`).join("") + "</tr>";
+  el.innerHTML = head + (rows.length ? rows.join("") : `<tr><td class="muted" colspan="${headers.length}">${empty}</td></tr>`);
+}
+
+// ------------------------------------------------------------------ onglets
+function showTab() {
+  const id = (location.hash || "#overview").slice(1);
+  document.querySelectorAll("section").forEach((s) => s.classList.toggle("active", s.id === id));
+  document.querySelectorAll("#tabs a").forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + id));
+  // Un graphique créé dans un onglet masqué a une largeur nulle : on recadre à l'affichage.
+  requestAnimationFrame(() => charts.forEach((c) => c.chart.timeScale().fitContent()));
+}
+window.addEventListener("hashchange", showTab);
+
+// ------------------------------------------------------------------ graphiques
+const charts = [];
+function makeChart(el, kind) {
+  if (!window.LightweightCharts) { el.innerHTML = '<p class="muted">Graphiques indisponibles (bibliothèque non chargée).</p>'; return null; }
+  const chart = LightweightCharts.createChart(el, {
+    autoSize: true,
+    layout: { background: { color: "transparent" }, textColor: css("--text-secondary"), fontFamily: "system-ui" },
+    grid: { vertLines: { visible: false }, horzLines: { color: css("--grid") } },
+    rightPriceScale: { borderVisible: false }, timeScale: { borderVisible: false, timeVisible: true },
+    crosshair: { mode: 0 },
+  });
+  const series = kind === "dd"
+    ? chart.addAreaSeries({ lineColor: css("--critical"), topColor: "transparent", bottomColor: css("--critical") + "40", lineWidth: 2, priceFormat: { type: "custom", formatter: (v) => v.toFixed(2) + " %" } })
+    : chart.addLineSeries({ color: css("--series-1"), lineWidth: 2, priceLineVisible: false });
+  const wrap = { chart, series };
+  charts.push(wrap);
+  return wrap;
+}
+let eqMini, eqChart, ddChart;
+
+// ------------------------------------------------------------------ rendu
+function renderOverview(o) {
+  const [color, label] = STATUS[o.status] || ["--text-muted", o.status];
+  $("#status-badge").innerHTML = `<span class="dot" style="background:var(${color})"></span><span>${esc(label)}</span>`;
+  $("#mode-badge").textContent = o.mode === "live" ? "LIVE — argent réel" : o.mode === "demo" ? "DÉMO — argent fictif" : o.mode.toUpperCase();
+  $("#mode-badge").style.borderColor = o.mode === "live" ? css("--critical") : "";
+  $("#updated").textContent = o.last_update ? "Mis à jour " + new Date(o.last_update).toLocaleTimeString("fr-CH") : "Aucune donnée du bot";
+  const banners = [];
+  if (o.silent) banners.push(["--critical", "⚠ Bot silencieux depuis plus de 5 min (ou jamais démarré)."]);
+  if (!o.healthy && !o.silent) banners.push(["--serious", "⚠ État incertain (erreur API ou écart de réconciliation) : aucune nouvelle entrée."]);
+  if (o.status !== "RUN" && o.status_reason) banners.push([color, `${o.status} : ${o.status_reason}` + (o.pause_until ? ` (jusqu'au ${new Date(o.pause_until).toLocaleString("fr-CH")})` : "")]);
+  $("#banner").innerHTML = banners.map(([c, t]) => `<div class="banner" style="border-color:var(${c})">${esc(t)}</div>`).join("");
+  const k = [
+    ["Equity", fmt(o.equity) + " USDT", ""],
+    ["P&L du jour", pct(o.daily_pnl_pct), "UTC"],
+    ["P&L de la semaine", pct(o.weekly_pnl_pct), ""],
+    ["P&L total réalisé", signed(o.total_pnl) + " USDT", "frais et funding compris"],
+    ["Drawdown", pct(o.drawdown), "limite " + pct(o.max_drawdown, 0)],
+  ];
+  $("#kpis").innerHTML = k.map(([l, v, s]) => `<div class="card kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join("");
+}
+
+function renderPositions(ps) {
+  table($("#positions-table"), ["Paire", "Sens", "Taille", "Entrée", "Stop", "Liquidation", "Prix", "Levier eff.", "P&L latent", "R", "Risque (USDT)"],
+    ps.map((p) => `<tr><td>${esc(p.symbol)}</td><td>${p.side === "long" ? "Long" : "Short"}</td><td>${p.qty}</td><td>${fmt(p.entry)}</td>
+      <td>${fmt(p.stop)}</td><td>${fmt(p.liq_price)}</td><td>${fmt(p.mark_price)}</td><td>${p.effective_leverage == null ? "–" : fmt(p.effective_leverage) + "x"}</td>
+      <td>${signed(p.unrealized_pnl)}</td><td>${signed(p.r_now)}</td><td>${fmt(p.risk_usdt)}</td></tr>`), "Aucune position ouverte.");
+}
+
+function renderTrades(ts) {
+  table($("#trades-table"), ["Clôture", "Paire", "Sens", "Entrée", "Sortie", "Résultat (R)", "P&L net", "Frais", "Funding", "Raison"],
+    ts.map((t) => `<tr><td>${new Date(t.closed_at).toLocaleString("fr-CH")}</td><td>${esc(t.symbol)}</td><td>${t.side === "long" ? "Long" : "Short"}</td>
+      <td>${fmt(t.entry)}</td><td>${fmt(t.exit)}</td><td>${signed(t.r_multiple)}</td><td>${signed(t.net_pnl)}</td><td>${fmt(t.fees)}</td>
+      <td>${signed(t.funding)}</td><td class="l">${esc(t.exit_reason)}</td></tr>`), "Aucun trade clôturé.");
+}
+
+function renderRisk(r) {
+  $("#gauges").innerHTML = r.gauges.map((g) => {
+    const ratio = Math.max(0, Math.min(1, g.ratio));
+    const [c, word] = ratio >= 1 ? ["--critical", "atteinte"] : ratio >= 0.66 ? ["--serious", "proche"] : ratio >= 0.33 ? ["--warning", "à surveiller"] : ["--good", "ok"];
+    const used = g.unit === "%" ? pct(g.used) : g.used;
+    const lim = g.unit === "%" ? pct(g.limit, 1) : g.limit;
+    return `<div class="gauge" role="meter" aria-valuemin="0" aria-valuemax="${g.limit}" aria-valuenow="${g.used}" aria-label="${esc(g.name)}">
+      <div class="row"><span>${esc(g.name)}</span><span><b>${used}</b> / ${lim} · ${word}</span></div>
+      <div class="track"><div class="fill" style="width:${ratio * 100}%;background:var(${c})"></div></div></div>`;
+  }).join("");
+}
+
+function renderPerformance(p) {
+  for (const [w, data] of [[eqMini, p.equity], [eqChart, p.equity], [ddChart, p.drawdown]]) if (w) { w.series.setData(data); w.chart.timeScale().fitContent(); }
+  table($("#strat-table"), ["Stratégie", "Trades", "Réussite", "Profit factor", "R moyen", "P&L net", "Frais", "Funding"],
+    p.strategies.map((s) => `<tr><td>${esc(s.strategy)}</td><td>${s.trades}</td><td>${pct(s.win_rate, 1)}</td><td>${s.profit_factor == null ? "∞" : fmt(s.profit_factor)}</td>
+      <td>${signed(s.avg_r)}</td><td>${signed(s.net_pnl)}</td><td>${fmt(s.fees)}</td><td>${signed(s.funding)}</td></tr>`), "Pas encore de trade.");
+}
+
+function renderJournal(es) {
+  table($("#journal-table"), ["Date", "Niveau", "Type", "Message"],
+    es.map((e) => `<tr><td>${new Date(e.ts).toLocaleString("fr-CH")}</td><td class="lvl-${esc(e.level)}">${esc(e.level)}</td><td>${esc(e.kind)}</td><td class="l" style="white-space:normal">${esc(e.message)}</td></tr>`), "Journal vide.");
+}
+
+function renderSettings(s) {
+  const names = { risk_per_trade: "Risque par trade", max_effective_leverage: "Levier effectif max", exchange_leverage: "Levier Bybit (marge isolée)",
+    max_open_positions: "Positions simultanées", max_total_open_risk: "Risque total ouvert", max_daily_loss: "Perte journalière", max_weekly_loss: "Perte hebdomadaire",
+    max_drawdown: "Drawdown max", max_consecutive_losses: "Pertes consécutives", fee_taker: "Frais taker", maintenance_margin_rate: "Marge de maintien" };
+  const isPct = (n) => /risk|loss|drawdown|fee|margin_rate/.test(n);
+  const rows = s.risk.map((r) => `<tr><td>${names[r.name] || r.name}</td><td>${isPct(r.name) ? pct(r.value) : r.value}</td><td>${r.cap == null ? "–" : isPct(r.name) ? pct(r.cap) : r.cap}</td></tr>`);
+  rows.push(`<tr><td>Liquidation / distance au stop</td><td colspan="2">≥ ${s.liq_distance_multiple_min} ×</td></tr>`);
+  rows.push(`<tr><td>Mode</td><td colspan="2">${esc(s.mode)}</td></tr>`, `<tr><td>Paires</td><td colspan="2">${esc(s.symbols.join(", "))}</td></tr>`,
+    `<tr><td>Capital max déclaré</td><td colspan="2">${s.max_capital_usdt == null ? "–" : fmt(s.max_capital_usdt) + " USDT"}</td></tr>`,
+    `<tr><td>Stratégie</td><td colspan="2" style="white-space:normal">${esc(s.strategy)}</td></tr>`, `<tr><td>Alertes Telegram</td><td colspan="2">${s.telegram ? "actives" : "non configurées"}</td></tr>`);
+  table($("#settings-table"), ["Paramètre", "Valeur", "Plafond codé en dur"], rows, "");
+}
+
+async function refresh() {
+  try {
+    const [o, ps, ts, r, p, es] = await Promise.all(["/api/overview", "/api/positions", "/api/trades", "/api/risk", "/api/performance", "/api/journal"].map(get));
+    renderOverview(o); renderPositions(ps); renderTrades(ts); renderRisk(r); renderPerformance(p); renderJournal(es);
+  } catch (e) {
+    $("#banner").innerHTML = `<div class="banner" style="border-color:var(--critical)">API injoignable : ${esc(e.message)}</div>`;
+  }
+}
+
+// ------------------------------------------------------------------ actions
+$("#pause-btn").addEventListener("click", async () => {
+  if (!confirm("Mettre le bot en pause ? Il n'ouvrira plus rien ; les positions et leurs stops restent en place.")) return;
+  try { await post("/api/pause"); refresh(); } catch (e) { alert("Échec : " + e.message); }
+});
+$("#kill-btn").addEventListener("click", () => { $("#kill-word").value = ""; $("#kill-dialog").showModal(); });
+$("#kill-dialog").addEventListener("close", async () => {
+  if ($("#kill-dialog").returnValue !== "ok") return;
+  try { await post("/api/kill", { confirm: $("#kill-word").value.trim() }); alert("Kill switch envoyé au bot."); refresh(); }
+  catch (e) { alert("Refusé : " + e.message); }
+});
+
+eqMini = makeChart($("#eq-mini"), "eq");
+eqChart = makeChart($("#eq-chart"), "eq");
+ddChart = makeChart($("#dd-chart"), "dd");
+get("/api/settings").then(renderSettings).catch(() => {});
+showTab();
+refresh();
+setInterval(refresh, 10000);
+</script>
+</body>
+</html>

@@ -56,7 +56,7 @@ class Settings(BaseSettings):
 
     symbols: list[str] = Field(default_factory=lambda: ["BTCUSDT", "ETHUSDT"])
 
-    database_url: SecretStr = SecretStr("postgresql://bot:bot@db:5432/bot")
+    database_url: SecretStr = SecretStr("sqlite:///bot.db")
 
     telegram_bot_token: SecretStr = SecretStr("")
     telegram_chat_id: str = ""
