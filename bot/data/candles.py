@@ -15,7 +15,12 @@ COLUMNS = ["open", "high", "low", "close", "volume"]
 
 class MarketSource(Protocol):
     def klines(
-        self, symbol: str, interval: str, start_ms: int | None = ..., end_ms: int | None = ..., limit: int = ...
+        self,
+        symbol: str,
+        interval: str,
+        start_ms: int | None = ...,
+        end_ms: int | None = ...,
+        limit: int = ...,
     ) -> list[list[str]]: ...
 
     def funding_history(
@@ -30,7 +35,9 @@ def _ms(dt: datetime) -> int:
 def rows_to_frame(rows: list[list[str]]) -> pd.DataFrame:
     """Lignes Bybit ``[start, open, high, low, close, volume, turnover]`` → DataFrame indexé UTC."""
     if not rows:
-        return pd.DataFrame(columns=COLUMNS, index=pd.DatetimeIndex([], tz=UTC, name="time"), dtype=float)
+        return pd.DataFrame(
+            columns=COLUMNS, index=pd.DatetimeIndex([], tz=UTC, name="time"), dtype=float
+        )
     df = pd.DataFrame([r[:6] for r in rows], columns=["time", *COLUMNS])
     df["time"] = pd.to_datetime(df["time"].astype("int64"), unit="ms", utc=True)
     df = df.set_index("time").astype(float)
@@ -55,7 +62,9 @@ def download_klines(
     return rows_to_frame(rows)
 
 
-def download_funding(source: MarketSource, symbol: str, start: datetime, end: datetime) -> pd.Series:
+def download_funding(
+    source: MarketSource, symbol: str, start: datetime, end: datetime
+) -> pd.Series:
     """Historique de funding (taux par période), paginé à rebours par blocs de 200."""
     out: dict[int, float] = {}
     end_ms, start_ms = _ms(end), _ms(start)
@@ -85,7 +94,7 @@ def closed_bars(df: pd.DataFrame, now: datetime, bar: timedelta = BAR) -> pd.Dat
 
 def find_gaps(df: pd.DataFrame, bar: timedelta = BAR) -> list[pd.Timestamp]:
     """Ouvertures de bougies manquantes."""
-    if len(df) < 2:  # noqa: PLR2004
+    if len(df) < 2:
         return []
     expected = pd.date_range(df.index[0], df.index[-1], freq=bar)
     return list(expected.difference(pd.DatetimeIndex(df.index)))
