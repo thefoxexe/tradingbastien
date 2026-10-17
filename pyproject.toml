@@ -46,6 +46,9 @@ ignore = [
     "S311",  # random sert au Monte Carlo, pas à la crypto
 ]
 
+[tool.ruff.lint.isort]
+known-first-party = ["bot", "api", "tests"]
+
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["fastapi.Depends", "fastapi.Header"]
 
