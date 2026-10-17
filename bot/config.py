@@ -16,6 +16,8 @@ from functools import cached_property
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from bot.risk.limits import RiskConfig
+
 BYBIT_REST_LIVE = "https://api.bybit.com"
 BYBIT_REST_DEMO = "https://api-demo.bybit.com"
 
@@ -61,8 +63,20 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
+    # Risque : ces valeurs ne peuvent qu'abaisser les plafonds codés en dur.
+    risk_per_trade: float = 0.01
+    max_effective_leverage: float = 2.0
+    max_open_positions: int = 2
+    max_total_open_risk: float = 0.02
+    fee_taker: float = 0.00055
+
+    heartbeat_url: str = ""
+    loop_interval_s: float = Field(default=5.0, gt=0)
+    reconcile_interval_s: float = Field(default=60.0, gt=0)
+
     @model_validator(mode="after")
     def _check(self) -> Settings:
+        self.risk_config()  # lève RiskConfigError si un plafond est dépassé
         unknown = set(self.symbols) - ALLOWED_SYMBOLS
         if unknown:
             raise ConfigError(f"Paires hors périmètre v1 : {sorted(unknown)}")
@@ -76,6 +90,15 @@ class Settings(BaseSettings):
         ):
             raise ConfigError(f"Mode {self.mode} : BYBIT_API_KEY et BYBIT_API_SECRET requis.")
         return self
+
+    def risk_config(self) -> RiskConfig:
+        return RiskConfig(
+            risk_per_trade=self.risk_per_trade,
+            max_effective_leverage=self.max_effective_leverage,
+            max_open_positions=self.max_open_positions,
+            max_total_open_risk=self.max_total_open_risk,
+            fee_taker=self.fee_taker,
+        )
 
     @cached_property
     def rest_base_url(self) -> str | None:
